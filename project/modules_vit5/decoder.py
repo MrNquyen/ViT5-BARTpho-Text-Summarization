@@ -16,20 +16,19 @@ class Decoder(PreTrainedModel):
 
     def forward(
         self,
-        prev_inds: torch.Tensor,
         input_embed: torch.Tensor,
         input_attention_mask: torch.Tensor,
+        decoder_input_ids: torch.Tensor,
         decoder_attention_mask: torch.Tensor
     ):
-        [decoder_attention_mask == self.tokenizer.pad_token_id] = -100
-        
+        #-- Decoder
         vit5_dec_output = self.decoder(
-            input_ids=prev_inds,
+            input_ids=decoder_input_ids,
             attention_mask=decoder_attention_mask,
             encoder_hidden_states=input_embed,
             encoder_attention_mask=input_attention_mask
+            return_dict=True,
         )
-
 
         vit5_dec_last_hidden_state = vit5_dec_output.last_hidden_state
         results = {

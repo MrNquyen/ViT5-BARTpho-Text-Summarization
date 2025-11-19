@@ -44,7 +44,7 @@ class TransformerSummarizer(nn.Module):
     def build_layers(self):
         self.decoder = Decoder()
         self.encoder_description = Encoder("ocr_description")
-        self.encoder_summary = Encoder("gt")
+        self.self. = Encoder("gt")
         self.classifier = Classifier()
 
 
@@ -121,36 +121,73 @@ class TransformerSummarizer(nn.Module):
         ocr_description_attention_mask = ocr_description_inputs["attention_mask"]
 
 
-        #-- Get summary inds
-        gt_caption_inputs = self.encoder_summary.tokenize(gt_captions)
-        gt_caption_input_inds = gt_caption_inputs["input_inds"]
+        #-- Get summary ids
+        gt_caption_inputs = self.self.tokenize(gt_captions)
+        gt_caption_input_ids = gt_caption_inputs["input_ids"]
         gt_caption_attention_mask = gt_caption_inputs["attention_mask"]
 
 
-        #-- Get inds
-        batch_size = len(gt_captions)
+        #-- Others params
+        batch_size = ocr_description_embed.size(0)
+        dec_length = self.encoder_summary.max_length
+
+            #~: Decoder in: <BOS>  Tôi  là  AI  .
+        labels_input_ids = gt_caption_input_ids.clone()
+        labels_input_ids[labels_input_ids == self.tokenizer.pad_token_id] = -100
+
+        #-- Get ids
         if self.training:
+            #~: Shift Labels:     Tôi  là  AI  .  <EOS>
+            shift_decoder_input_ids = self.decoder._shift_right(gt_caption_input_ids.clone())
+        
             results = self.forward_mmt(
-                prev_inds= gt_caption_input_inds,
                 input_embed=ocr_description_embed,
                 input_attention_mask=ocr_description_attention_mask,
+                decoder_input_ids=shift_decoder_input_ids,
                 decoder_attention_mask=gt_caption_attention_mask
             )
             scores = self.forward_output(results=results)
-            return scores, gt_caption_input_inds, gt_caption_input_inds
+            return scores, gt_caption_input_ids, labels_input_ids
+        
         else:
-            pass
+            #~ Greedy Search
+            eos_id = self.tokenizer.eos_token_id
+            pad_id = self.tokenizer.pad_token_id
+
+            with torch.no_grad():
+                decoder_input_ids = torch.full(
+                    (batch_size, 1),
+                    fill_value=pad_id,
+                    dtype=torch.long,
+                    device=self.device
+                )
+
+                for step in range(dec_length):
+                    decoder_attention_mask = (decoder_input_ids != pad_id).long()
+                    results = self.forward_mmt(
+                        input_embed=ocr_description_embed,
+                        input_attention_mask=ocr_description_attention_mask,
+                        decoder_input_ids=decoder_input_ids,
+                        decoder_attention_mask=decoder_attention_mask
+                    )
+                    scores = self.forward_output(results=results)
+                    argmax_inds = scores.argmax(dim=-1)
+                    decoder_input_ids = torch.concat([decoder_input_ids, argmax_inds[:, -1]], dim=1)
+                # gen_ids = decoder_input_ids[:, 1:] #-- Ignore the first pad token
+                return None, decoder_input_ids, labels_input_ids
+            
 
 
-    def forward_mmt(self, prev_inds, input_embed, input_attention_mask, decoder_attention_mask):
+    def forward_mmt(self, prev_ids, input_embed, input_attention_mask, decoder_attention_mask):
         """
             Forward to mmt layer
         """
         results = self.decoder(
-            prev_inds= prev_inds,
+            prev_ids= prev_ids,
             input_embed=input_embed,
-            decoder_attention_mask=decoder_attention_mask,
             input_attention_mask=input_attention_mask
+            decoder_input_ids=decoder_input_ids,
+            decoder_attention_mask=decoder_attention_mask,
         )
         return results
         
