@@ -8,12 +8,12 @@ from utils.registry import registry
 from utils.vocab import CustomVocab
 
 class Encoder(PreTrainedModel):
-    def __init__(self, ):
+    def __init__(self, module_type):
         super().__init__(module_type="encoder")
         if module_type=="ocr_description":
-            self.max_length = type_config["max_length"]
+            self.max_length = self.type_config["max_length"]
         elif module_type=="gt":
-            self.max_length = type_config["max_dec_length"]
+            self.max_length = self.type_config["max_dec_length"]
 
 
     def forward(self, texts):

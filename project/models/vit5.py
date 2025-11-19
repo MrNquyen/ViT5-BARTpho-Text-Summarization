@@ -33,9 +33,6 @@ class TransformerSummarizer(nn.Module):
         self.writer.LOG_INFO("=== Build model layers ===")
         self.build_layers()
 
-        self.writer.LOG_INFO("=== Build model outputs ===")
-        self.build_output()
-
         self.writer.LOG_INFO("=== Build adjust learning rate ===")
         self.adjust_lr()
     
@@ -46,14 +43,10 @@ class TransformerSummarizer(nn.Module):
 
     def build_layers(self):
         self.decoder = Decoder()
-        self.encoder_description = Encoder()
-        self.encoder_summary = Encoder(self.encoder_description.tokenizer)
+        self.encoder_description = Encoder("ocr_description")
+        self.encoder_summary = Encoder("gt")
+        self.classifier = Classifier()
 
-    # Need to modify
-    def build_output(self):
-        num_choices = self.encoder_summary.get_vocab_size()
-        self.classifier = Classifier(self.hidden_size, num_choices)
-    
 
     def build_model_init(self):
         #~ Finetune module is the module has lower lr than others module
@@ -111,6 +104,7 @@ class TransformerSummarizer(nn.Module):
             size=shape
         ).to(self.device)
         
+
     #-- FORWARD
     def forward(
             self,
@@ -120,12 +114,18 @@ class TransformerSummarizer(nn.Module):
         gt_caption_tokens = batch["list_caption_tokens"]
         ocr_descriptions = batch["list_ocr_descriptions"]
 
+
         #-- Get inputs
         ocr_description_inputs = self.encoder_description.tokenize(ocr_descriptions)
         ocr_description_embed = self.encoder_description.text_embedding(ocr_description_inputs)
+        ocr_description_attention_mask = ocr_description_inputs["attention_mask"]
+
 
         #-- Get summary inds
-        gt_caption_input_inds = self.encoder_summary.get_word_inds(gt_caption_tokens)
+        gt_caption_inputs = self.encoder_summary.tokenize(gt_captions)
+        gt_caption_input_inds = gt_caption_inputs["input_inds"]
+        gt_caption_attention_mask = gt_caption_inputs["attention_mask"]
+
 
         #-- Get inds
         batch_size = len(gt_captions)
@@ -133,44 +133,28 @@ class TransformerSummarizer(nn.Module):
             results = self.forward_mmt(
                 prev_inds= gt_caption_input_inds,
                 input_embed=ocr_description_embed,
-                fixed_ans_emb=self.classifier.get_fixed_embed(),
-                input_attention_mask=ocr_description_inputs["attention_mask"]
+                input_attention_mask=ocr_description_attention_mask,
+                decoder_attention_mask=gt_caption_attention_mask
             )
             scores = self.forward_output(results=results)
             return scores, gt_caption_input_inds, gt_caption_input_inds
         else:
-            num_dec_step = self.decoder.max_length
-            # Init prev_ids with <s> idx at begin, else where with <pad> (at idx 0)
-            start_idx = self.encoder_description.get_cls_token_id() 
-            pad_idx = self.encoder_description.get_pad_token_id()
-            fixed_ans_emb = self.classifier.get_fixed_embed()
-            prev_inds = torch.full((batch_size, num_dec_step), pad_idx).to(self.device)
-            prev_inds[:, 0] = start_idx
-            scores = None
-            for i in tqdm(range(1, num_dec_step)):
-                results = self.forward_mmt(
-                    prev_inds= prev_inds,
-                    input_embed=ocr_description_embed,
-                    fixed_ans_emb=fixed_ans_emb,
-                    input_attention_mask=ocr_description_inputs["attention_mask"]
-                )
-                scores = self.forward_output(results)
-                argmax_inds = scores.argmax(dim=-1)
-                prev_inds[:, i] = argmax_inds[:, -1]
-            return scores, prev_inds, gt_caption_input_inds
+            pass
 
-    def forward_mmt(self, prev_inds, input_embed, fixed_ans_emb, input_attention_mask):
+
+    def forward_mmt(self, prev_inds, input_embed, input_attention_mask, decoder_attention_mask):
         """
             Forward to mmt layer
         """
         results = self.decoder(
             prev_inds= prev_inds,
             input_embed=input_embed,
-            fixed_ans_emb=fixed_ans_emb,
+            decoder_attention_mask=decoder_attention_mask,
             input_attention_mask=input_attention_mask
         )
         return results
         
+
     def forward_output(self, results):
         """
         Calculate scores for ocr tokens and common word at each timestep
@@ -183,7 +167,7 @@ class TransformerSummarizer(nn.Module):
             Return:
             ----------
         """
-        mmt_dec_output = results["mmt_dec_output"]
-        fixed_scores = self.classifier(mmt_dec_output)
+        vit5_dec_last_hidden_state = results["vit5_dec_last_hidden_state"]
+        fixed_scores = self.classifier(vit5_dec_last_hidden_state)
         return fixed_scores
 
