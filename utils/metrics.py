@@ -1,13 +1,13 @@
 from utils.pycocoevalcap.bleu.bleu import Bleu
 from utils.pycocoevalcap.rouge.rouge import Rouge
 from utils.pycocoevalcap.cider.cider import Cider
-from utils.pycocoevalcap.meteor.meteor import Meteor
+# from utils.pycocoevalcap.meteor.meteor import Meteor
 
 
 def metric_calculate(ref, hypo):
     scorers = [
         (Bleu(4), ["Bleu_1", "Bleu_2", "Bleu_3", "Bleu_4"]),
-        (Meteor(), "METEOR"),
+        # (Meteor(), "METEOR"),
         (Rouge(), "ROUGE_L"),
         (Cider(), "CIDEr")
     ]

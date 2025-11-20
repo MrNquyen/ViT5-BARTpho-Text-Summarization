@@ -20,6 +20,10 @@ class Classifier(nn.Module):
 
     def get_fixed_embed(self):
         return self.classifier.weight
+
+    def get_vocab_size(self):
+        return self.get_fixed_embed().size(0)
+
     
     def forward(self, inputs):
         return self.classifier(inputs)

@@ -130,31 +130,35 @@ class TransformerSummarizer(nn.Module):
         #-- Others params
         batch_size = ocr_description_embed.size(0)
         dec_length = self.encoder_summary.max_length
+        vocab_size = self.classifier.get_vocab_size()
 
-            #~: Decoder in: <BOS>  Tôi  là  AI  .
+            #~: Labels:     Tôi  là  AI  .  <EOS>
         labels_input_ids = gt_caption_input_ids.clone()
         labels_input_ids[labels_input_ids == self.encoder_summary.tokenizer.pad_token_id] = -100
 
         #-- Get ids
         if self.training:
-            #~: Shift Labels:     Tôi  là  AI  .  <EOS>
+            #~ Decoder input: shift right (prepend pad_token, remove last token)
+            #~ Example: [Tôi, là, AI, ., <eos>] -> [<pad>, Tôi, là, AI, .]
             shift_decoder_input_ids = self.decoder._shift_right(gt_caption_input_ids.clone())
-        
+            decoder_attention_mask = (shift_decoder_input_ids != self.encoder_summary.tokenizer.pad_token_id).long()
+
             results = self.forward_mmt(
                 input_embed=ocr_description_embed,
                 input_attention_mask=ocr_description_attention_mask,
                 decoder_input_ids=shift_decoder_input_ids,
-                decoder_attention_mask=gt_caption_attention_mask
+                decoder_attention_mask=decoder_attention_mask
             )
             scores = self.forward_output(results=results)
             return scores, gt_caption_input_ids, labels_input_ids
         
         else:
             #~ Greedy Search
-            eos_id = self.tokenizer.eos_token_id
-            pad_id = self.tokenizer.pad_token_id
+            eos_id = self.encoder_summary.tokenizer.eos_token_id
+            pad_id = self.encoder_summary.tokenizer.pad_token_id
 
             with torch.no_grad():
+                scores = torch.zeros((batch_size, dec_length, vocab_size), device=self.device)
                 decoder_input_ids = torch.full(
                     (batch_size, 1),
                     fill_value=pad_id,
@@ -170,20 +174,23 @@ class TransformerSummarizer(nn.Module):
                         decoder_input_ids=decoder_input_ids,
                         decoder_attention_mask=decoder_attention_mask
                     )
-                    scores = self.forward_output(results=results)
-                    argmax_inds = scores.argmax(dim=-1)
-                    decoder_input_ids = torch.concat([decoder_input_ids, argmax_inds[:, -1]], dim=1)
+                    step_scores = self.forward_output(results=results)
+                    argmax_inds = step_scores.argmax(dim=-1).unsqueeze(-1)
+
+                    #~ Assign
+                    scores[:, step, :] = step_scores[:, step, :]
+                    decoder_input_ids = torch.concat([decoder_input_ids, argmax_inds[:, step]], dim=1)
+
                 # gen_ids = decoder_input_ids[:, 1:] #-- Ignore the first pad token
-                return None, decoder_input_ids, labels_input_ids
+                return scores, decoder_input_ids, labels_input_ids
             
 
 
-    def forward_mmt(self, prev_ids, input_embed, input_attention_mask, decoder_input_ids, decoder_attention_mask):
+    def forward_mmt(self, input_embed, input_attention_mask, decoder_input_ids, decoder_attention_mask):
         """
             Forward to mmt layer
         """
         results = self.decoder(
-            prev_ids= prev_ids,
             input_embed=input_embed,
             input_attention_mask=input_attention_mask,
             decoder_input_ids=decoder_input_ids,

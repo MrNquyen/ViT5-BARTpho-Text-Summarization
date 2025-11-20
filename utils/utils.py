@@ -1,7 +1,24 @@
-import json
 import torch
 import numpy as np
 import yaml
+
+import os
+import re
+import glob
+import json
+import pickle
+import glob
+import yaml
+import os
+import random
+import string
+import difflib
+
+import numpy as np
+from PIL import Image 
+from tqdm import tqdm
+from icecream import ic
+from argparse import Namespace
 
 #---- Load json
 def load_json(path):
@@ -53,3 +70,23 @@ def check_requires_grad(module, name="module"):
             print(f"[Frozen]    {name}.{n}: {tuple(p.shape)}")
             frozen += 1
     print(f"\nSummary for {name}: {trainable} trainable / {frozen} frozen parameters\n")
+
+
+def load_yml_to_args(yml_path):
+    """
+    Load yml config file as arg parser object
+
+    Args:
+        yml_path (str): path to yml file
+    """
+    def dict_to_namespace(d):
+        """Recursively convert dict to Namespace"""
+        if isinstance(d, dict):
+            return Namespace(**{k: dict_to_namespace(v) for k, v in d.items()})
+        elif isinstance(d, list):
+            return [dict_to_namespace(x) for x in d]
+        else:
+            return d
+    yml_file = load_yml(path=yml_path)
+    args = dict_to_namespace(yml_file)
+    return args
