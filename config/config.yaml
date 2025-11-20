@@ -1,22 +1,29 @@
 
 dataset_attributes:
   annotations:
-    train: /data2/npl/ViInfographicCaps/data/data/paddle_ocr_description/train_new.json
-    val: /data2/npl/ViInfographicCaps/data/data/paddle_ocr_description/val_new.json
-    test: /data2/npl/ViInfographicCaps/data/data/paddle_ocr_description/test_new.json
+    # train: /datastore/npl/ViInfographicCaps/data/data/paddle_ocr_description/train_new.json
+    # val: /datastore/npl/ViInfographicCaps/data/data/paddle_ocr_description/val_new.json
+    # test: /datastore/npl/ViInfographicCaps/data/data/paddle_ocr_description/test_new.json
+    train: /datastore/npl/ViInfographicCaps/data/data/vitern/train_dev_test/train.json
+    val: /datastore/npl/ViInfographicCaps/data/data/vitern/train_dev_test/val.json
+    test: /datastore/npl/ViInfographicCaps/data/data/vitern/train_dev_test/test.json
 model_attributes:
   hidden_size: 768
   encoder:
-    # pretrained: /data2/npl/ViInfographicCaps/model/bert-base-uncased
-    vocab_file: /data2/npl/ViInfographicCaps/data/data/new_split_format/vocabs.txt
-    pretrained: /data2/npl/ViInfographicCaps/model/phobert-base
+    # pretrained: /datastore/npl/ViInfographicCaps/model/bert-base-uncased
+    # vocab_file: /datastore/npl/ViInfographicCaps/data/data/new_split_format/vocabs.txt
+    vocab_file: /datastore/npl/ViInfographicCaps/data/data/vitern/train_dev_test/vocabs.txt
+    pretrained: /datastore/npl/ViInfographicCaps/model/vit5-base
     max_length: 128
+    # max_length: 10
     max_dec_length: 50
+    # max_dec_length: 5
     return_tensors: pt
   decoder:
-    # pretrained: /data2/npl/ViInfographicCaps/model/bert-base-uncased
-    pretrained: /data2/npl/ViInfographicCaps/model/phobert-base
+    # pretrained: /datastore/npl/ViInfographicCaps/model/bert-base-uncased
+    pretrained: /datastore/npl/ViInfographicCaps/model/vit5-base
     max_length: 50
+    # max_length: 5
     num_layers: 4
     nhead: 12
     dropout: 0.1
@@ -26,30 +33,34 @@ model_attributes:
 optimizer_attributes:
   lr_scale: 0.1 # scale lr for finetuning modules
   params:
-    eps: 1.0e-08
-    lr: 3e-5 
+    eps: 1e-8
+    lr: 1e-4 
     weight_decay: 0.01
   type: AdamW
 training_parameters:
-  epochs: 40
+  epochs: 150
   batch_size: 64
-  # batch_size: 16
-  iterations: 9000
+  early_stopping:
+    patience: 5
   lr_scheduler:
     status: true
     type: "step"
     gamma : 0.1
     lr_steps:
+      - 3000
       - 6000
+      - 8000
       - 10000
     lr_ratio: 0.1
     use_warmup: true
-    warmup_factor: 0.2
+    warmup_factor: 0.5
     warmup_iterations: 1000
+    lr_epoch_step_size: 10
+    warmup_epochs: 20
+    decay_factor: 0.1
   max_iterations: 12000
-  # snapshot_interval: 300
-  # snapshot_interval: 500
   snapshot_interval: 500
+  snapshot_epoch_interval: 3
   monitored_metric: m4c_textcaps/textcaps_bleu4
   metric_minimize: false
   seed: 2021

@@ -3,16 +3,16 @@ import numpy as np
 
 from torch import nn
 
-from project.modules.base import PreTrainedModel
+from project.modules_vit5.base import PreTrainedModel
 from utils.registry import registry
 from utils.vocab import CustomVocab
 
 class Encoder(PreTrainedModel):
-    def __init__(self, module_type):
-        super().__init__(module_type="encoder")
-        if module_type=="ocr_description":
+    def __init__(self, module_type, mode):
+        super().__init__(module_type)
+        if mode=="ocr_description":
             self.max_length = self.type_config["max_length"]
-        elif module_type=="gt":
+        elif mode=="gt":
             self.max_length = self.type_config["max_dec_length"]
 
 

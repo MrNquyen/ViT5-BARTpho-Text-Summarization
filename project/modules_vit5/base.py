@@ -32,7 +32,8 @@ class PreTrainedModel(nn.Module):
         #-- Load Encoder, Decoder, Classifier
         self.model.gradient_checkpointing_enable()
         self.encoder = self.model.encoder
-        self.classifier = self.model.classifier
+        self.decoder = self.model.decoder
+        self.classifier = self.model.lm_head
 
 
     #-- Tokenize

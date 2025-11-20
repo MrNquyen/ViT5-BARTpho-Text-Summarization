@@ -8,14 +8,15 @@ from tqdm import tqdm
 import torch.nn.functional as F
 from utils.configs import Config
 from project.dataset.dataset import get_loader
-from utils.model_utils import get_optimizer_parameters, lr_lambda_update
+from utils.model_utils import get_optimizer_parameters, lr_lambda_update, lr_lambda_update_epoch
 from utils.module_utils import _batch_padding, _batch_padding_string
 from utils.logger import Logger
 from utils.metrics import metric_calculate
-from utils.utils import save_json
+from utils.utils import save_json, count_nan
 from utils.registry import registry
-from project.models.seq2seq import TransformerSummarizer
+from project.models.vit5 import TransformerSummarizer
 from icecream import ic
+from utils.utils import check_requires_grad
 
 # ~Trainer~
 class Trainer():
@@ -36,7 +37,7 @@ class Trainer():
         batch_size = self.config.config_training["batch_size"]
         self.train_loader = get_loader(dataset_config=self.config.config_dataset, batch_size=batch_size, split="train")
         self.val_loader = get_loader(dataset_config=self.config.config_dataset, batch_size=batch_size, split="val")
-        self.test_loader = get_loader(dataset_config=self.config.config_dataset, batch_size=batch_size, split="test")
+        self.test_loader = get_loader(dataset_config=self.config.config_dataset, batch_size=16, split="test")
 
     #---- REGISTER
     def build_registry(self):
@@ -68,6 +69,9 @@ class Trainer():
         self.batch_size = self.config.config_training["batch_size"]
         self.max_iterations = self.config.config_training["max_iterations"]
         self.snapshot_interval = self.config.config_training["snapshot_interval"]
+        self.snapshot_epoch_interval = self.config.config_training["snapshot_epoch_interval"]
+        self.early_stop_patience = self.config.config_training["early_stopping"]["patience"]
+        self.early_stop_counter = 0
         self.current_iteration = 0
         self.current_epoch = 0
 
@@ -90,7 +94,7 @@ class Trainer():
     def build_scheduler(self, optimizer, config_lr_scheduler):
         if not config_lr_scheduler["status"]:
             return None
-        scheduler_func = lambda x: lr_lambda_update(x, config_lr_scheduler)
+        scheduler_func = lambda x: lr_lambda_update_epoch(x, config_lr_scheduler)
             
         lr_scheduler = torch.optim.lr_scheduler.LambdaLR(
             optimizer=optimizer,
@@ -159,7 +163,7 @@ class Trainer():
         return loss_output
     
     def _gradient_clipping(self):
-        nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
+        nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=0.5)
 
     def _backward(self, loss):
         """
@@ -169,19 +173,17 @@ class Trainer():
         loss.backward()
         self._gradient_clipping()
         self.optimizer.step()
-        self._run_scheduler()
     
 
     def _run_scheduler(self):
         """
             Learning rate scheduler
         """
-        self.lr_scheduler.step(self.current_iteration)
+        self.lr_scheduler.step()
 
-        # debug: log LRs (every 1000 steps or so)
-        if self.current_iteration % 1000 == 0:
-            lrs = [pg['lr'] for pg in self.optimizer.param_groups]
-            self.writer.LOG_INFO(f"Iteration {self.current_iteration} LRs: {lrs}")
+        # debug: log LRs (every 5 epochs or so)
+        lrs = [pg['lr'] for pg in self.optimizer.param_groups]
+        self.writer.LOG_INFO(f"Epoch {self.current_epoch} LRs: {lrs}")
 
     #---- MODE
     def match_device(self, batch):
@@ -205,11 +207,12 @@ class Trainer():
         self.model.train()
         
         best_scores = -1
-        while self.current_iteration < self.max_iterations:
+        while self.current_epoch <= self.max_epochs:
             self.current_epoch += 1
             self.writer.LOG_INFO(f"Training epoch: {self.current_epoch}")
             for batch_id, batch in tqdm(enumerate(self.train_loader), desc="Iterating through train loader"):
-                self.writer.LOG_INFO(f"Training iteration: {self.current_iteration}")
+                self.writer.LOG_INFO(f"Training epoch: {self.current_epoch} - Batch: {batch_id}")
+
                 batch = self.preprocess_batch(batch)
                 batch = self.match_device(batch)
 
@@ -219,24 +222,14 @@ class Trainer():
                 loss = self._extract_loss(scores_output, target_inds)
                 ic(loss)
                 self._backward(loss)
-                
-                if self.current_iteration > self.max_iterations:
-                    break
 
-                if self.current_iteration % self.snapshot_interval == 0:
-                    _, _, val_final_scores, loss = self.evaluate(iteration_id=self.current_iteration, split="val")
-                    if val_final_scores["ROUGE_L"] > best_scores:
-                        best_scores = val_final_scores["ROUGE_L"]
-                        self.save_model(
-                            model=self.model,
-                            loss=loss,
-                            optimizer=self.optimizer,
-                            lr_scheduler=self.lr_scheduler,
-                            epoch=self.current_epoch, 
-                            iteration=self.current_iteration,
-                            metric_score=best_scores,
-                            use_name="best"
-                        )
+            #-- Run scheduler
+            self._run_scheduler()
+            if self.current_epoch % self.snapshot_epoch_interval == 0:
+                _, _, val_final_scores, loss = self.evaluate(iteration_id=self.current_iteration, split="val")
+                if val_final_scores["CIDEr"] > best_scores:
+                    self.early_stop_counter = 0
+                    best_scores = val_final_scores["CIDEr"]
                     self.save_model(
                         model=self.model,
                         loss=loss,
@@ -245,18 +238,36 @@ class Trainer():
                         epoch=self.current_epoch, 
                         iteration=self.current_iteration,
                         metric_score=best_scores,
-                        use_name=self.current_iteration
+                        use_name="best"
                     )
-                    self.save_model(
-                        model=self.model,
-                        loss=loss,
-                        optimizer=self.optimizer,
-                        lr_scheduler=self.lr_scheduler,
-                        epoch=self.current_epoch, 
-                        iteration=self.current_iteration,
-                        metric_score=best_scores,
-                        use_name="last"
-                    )
+                else:
+                    self.early_stop_counter += 1
+
+                if self.early_stop_counter >= self.early_stop_patience:
+                    self.writer.LOG_INFO("Early stopping triggered.")
+                    break
+                
+
+                self.save_model(
+                    model=self.model,
+                    loss=loss,
+                    optimizer=self.optimizer,
+                    lr_scheduler=self.lr_scheduler,
+                    epoch=self.current_epoch, 
+                    iteration=self.current_iteration,
+                    metric_score=best_scores,
+                    use_name=self.current_iteration
+                )
+                self.save_model(
+                    model=self.model,
+                    loss=loss,
+                    optimizer=self.optimizer,
+                    lr_scheduler=self.lr_scheduler,
+                    epoch=self.current_epoch, 
+                    iteration=self.current_iteration,
+                    metric_score=best_scores,
+                    use_name="last"
+                )
                     
                     
     

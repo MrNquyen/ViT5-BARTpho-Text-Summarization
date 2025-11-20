@@ -5,14 +5,16 @@ from torch.nn import functional as F
 from utils.registry import registry 
 from icecream import ic
 
-from project.modules.base import PreTrainedModel
+from project.modules_vit5.base import PreTrainedModel
 from utils.module_utils import _batch_gather, _get_causal_mask
 
 
 class Decoder(PreTrainedModel):
     def __init__(self):
-        super().__init__(_type="decoder")
+        super().__init__(module_type="decoder")
 
+    def _shift_right(self, x):
+        return self.decoder._shift_right(x)
 
     def forward(
         self,
@@ -26,7 +28,7 @@ class Decoder(PreTrainedModel):
             input_ids=decoder_input_ids,
             attention_mask=decoder_attention_mask,
             encoder_hidden_states=input_embed,
-            encoder_attention_mask=input_attention_mask
+            encoder_attention_mask=input_attention_mask,
             return_dict=True,
         )
 

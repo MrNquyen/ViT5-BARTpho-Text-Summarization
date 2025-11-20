@@ -1,11 +1,11 @@
 import torch
 from torch import nn
-from project.modules.decoder import Decoder
-from project.modules.encoder import Encoder 
+from project.modules_vit5.decoder import Decoder
+from project.modules_vit5.encoder import Encoder 
 from utils.registry import registry
 from utils.utils import count_nan
 from utils.module_utils import _batch_gather
-from project.modules.classifier import Classifier
+from project.modules_vit5.classifier import Classifier
 from torch.nn import functional as F
 from icecream import ic
 from tqdm import tqdm
@@ -43,8 +43,8 @@ class TransformerSummarizer(nn.Module):
 
     def build_layers(self):
         self.decoder = Decoder()
-        self.encoder_description = Encoder("ocr_description")
-        self.self. = Encoder("gt")
+        self.encoder_description = Encoder("encoder", "ocr_description")
+        self.encoder_summary = Encoder("encoder", "gt")
         self.classifier = Classifier()
 
 
@@ -122,7 +122,7 @@ class TransformerSummarizer(nn.Module):
 
 
         #-- Get summary ids
-        gt_caption_inputs = self.self.tokenize(gt_captions)
+        gt_caption_inputs = self.encoder_summary.tokenize(gt_captions)
         gt_caption_input_ids = gt_caption_inputs["input_ids"]
         gt_caption_attention_mask = gt_caption_inputs["attention_mask"]
 
@@ -133,7 +133,7 @@ class TransformerSummarizer(nn.Module):
 
             #~: Decoder in: <BOS>  Tôi  là  AI  .
         labels_input_ids = gt_caption_input_ids.clone()
-        labels_input_ids[labels_input_ids == self.tokenizer.pad_token_id] = -100
+        labels_input_ids[labels_input_ids == self.encoder_summary.tokenizer.pad_token_id] = -100
 
         #-- Get ids
         if self.training:
@@ -178,14 +178,14 @@ class TransformerSummarizer(nn.Module):
             
 
 
-    def forward_mmt(self, prev_ids, input_embed, input_attention_mask, decoder_attention_mask):
+    def forward_mmt(self, prev_ids, input_embed, input_attention_mask, decoder_input_ids, decoder_attention_mask):
         """
             Forward to mmt layer
         """
         results = self.decoder(
             prev_ids= prev_ids,
             input_embed=input_embed,
-            input_attention_mask=input_attention_mask
+            input_attention_mask=input_attention_mask,
             decoder_input_ids=decoder_input_ids,
             decoder_attention_mask=decoder_attention_mask,
         )

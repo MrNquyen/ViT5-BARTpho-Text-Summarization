@@ -1,7 +1,7 @@
 import torch
 from torch import nn
 
-from project.modules.base import PreTrainedModel
+from project.modules_vit5.base import PreTrainedModel
 from utils.registry import registry
 
 class Classifier(PreTrainedModel):
