@@ -57,7 +57,7 @@ training_parameters:
     warmup_iterations: 1000
     lr_epoch_step_size: 5
     warmup_epochs: 10
-    decay_factor: 0.8
+    decay_factor: 0.3
   max_iterations: 12000
   snapshot_interval: 500
   snapshot_epoch_interval: 3
