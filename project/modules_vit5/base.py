@@ -10,6 +10,7 @@ class PreTrainedModel(nn.Module):
     def __init__(self, module_type="encoder"):
         super().__init__()
         #-- Load config and args
+        self.writer = registry.get_writer("common")
         self.model_config = registry.get_config("model_attributes")
         self.type_config = self.model_config[module_type]
         self.device = registry.get_args("device")
@@ -34,6 +35,10 @@ class PreTrainedModel(nn.Module):
         self.encoder = self.model.encoder
         self.decoder = self.model.decoder
         self.classifier = self.model.lm_head
+
+        for param in self.encoder.parameters():
+            param.requires_grad = False
+        self.writer.LOG_INFO("Freeze the encoder params")
 
 
     #-- Tokenize

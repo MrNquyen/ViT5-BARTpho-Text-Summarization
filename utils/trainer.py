@@ -62,6 +62,8 @@ class Trainer():
 
     def build_model(self):
         self.model = TransformerSummarizer()
+        # check_requires_grad(self.model)
+        # raise
         self.model.to(self.device)
 
     def build_training_params(self):
@@ -104,8 +106,8 @@ class Trainer():
 
 
     def build_loss(self):
-        pad_idx = self.model.encoder_description.get_pad_token_id()
-        loss_fn = nn.CrossEntropyLoss(ignore_index=pad_idx)
+        # pad_idx = self.model.encoder_description.get_pad_token_id()
+        loss_fn = nn.CrossEntropyLoss(ignore_index=-100)
         return loss_fn
 
 
@@ -226,7 +228,7 @@ class Trainer():
             #-- Run scheduler
             self._run_scheduler()
             if self.current_epoch % self.snapshot_epoch_interval == 0:
-                _, _, val_final_scores, loss = self.evaluate(iteration_id=self.current_iteration, split="val")
+                _, _, val_final_scores, loss = self.evaluate(epoch_id=self.current_epoch, split="val")
                 if val_final_scores["CIDEr"] > best_scores:
                     self.early_stop_counter = 0
                     best_scores = val_final_scores["CIDEr"]
@@ -256,22 +258,22 @@ class Trainer():
                     epoch=self.current_epoch, 
                     iteration=self.current_iteration,
                     metric_score=best_scores,
-                    use_name=self.current_iteration
+                    use_name=self.current_epoch
                 )
-                self.save_model(
-                    model=self.model,
-                    loss=loss,
-                    optimizer=self.optimizer,
-                    lr_scheduler=self.lr_scheduler,
-                    epoch=self.current_epoch, 
-                    iteration=self.current_iteration,
-                    metric_score=best_scores,
-                    use_name="last"
-                )
+            self.save_model(
+                model=self.model,
+                loss=loss,
+                optimizer=self.optimizer,
+                lr_scheduler=self.lr_scheduler,
+                epoch=self.current_epoch, 
+                iteration=self.current_iteration,
+                metric_score=best_scores,
+                use_name="last"
+            )
                     
                     
     
-    def evaluate(self, iteration_id=None, split="val"):
+    def evaluate(self, epoch_id=None, split="val"):
         if hasattr(self, f"{split}_loader"):
             dataloader = getattr(self, f"{split}_loader")
         else:
@@ -299,8 +301,8 @@ class Trainer():
                 ic(loss_scalar)
                 
                 #~ Metrics calculation
-                if not iteration_id==None:
-                    self.writer_evaluation.LOG_INFO(f"Logging at iteration: {iteration_id}")
+                if not epoch_id==None:
+                    self.writer_evaluation.LOG_INFO(f"Logging at iteration: {epoch_id}")
                 
                 pred_caps = self.get_pred_captions(pred_inds)
                 ic(pred_caps)
@@ -311,7 +313,7 @@ class Trainer():
             # Calculate Metrics
             final_scores = metric_calculate(ref, hypo)
             avg_loss = sum(losses) / len(losses) 
-            self.writer_evaluation.LOG_INFO(f"|| Metrics Calculation || {split} split || epoch: {iteration_id} || loss: {avg_loss}")
+            self.writer_evaluation.LOG_INFO(f"|| Metrics Calculation || {split} split || epoch: {epoch_id} || loss: {avg_loss}")
             self.writer_evaluation.LOG_INFO(f"Final scores:\n{final_scores}")
             
             # Turn on train mode to continue training
@@ -327,10 +329,10 @@ class Trainer():
         hypo, ref = {}, {}
         if mode=="val":
             self.writer_inference.LOG_INFO("=== Inference Validation Split ===")
-            hypo, ref, _, _ = self.evaluate(iteration_id="Inference val set", split="val")
+            hypo, ref, _, _ = self.evaluate(epoch_id="Inference val set", split="val")
         elif mode=="test":
             self.writer_inference.LOG_INFO("=== Inference Test Split ===")
-            hypo, ref, _, _ = self.evaluate(iteration_id="Inference test set", split="test")
+            hypo, ref, _, _ = self.evaluate(epoch_id="Inference test set", split="test")
         else:
             self.writer_inference.LOG_ERROR(f"No mode available for {mode}")
         
