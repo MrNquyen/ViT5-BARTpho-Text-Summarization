@@ -55,6 +55,7 @@ class PreTrainedModel(nn.Module):
         inputs = {k: v.to(self.device) for k, v in inputs.items()}
         return inputs # 'input_ids', 'token_type_ids', 'attention_mask'
     
+    
     def text_embedding(self, inputs):
         """
             Args:
