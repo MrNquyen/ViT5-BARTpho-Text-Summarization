@@ -12,6 +12,8 @@ from tqdm import tqdm
 import math
 import time
 
+from transformers import AutoConfig, AutoTokenizer, T5ForConditionalGeneration
+
 
 class TransformerSummarizer(nn.Module):
     def __init__(self):
@@ -29,6 +31,9 @@ class TransformerSummarizer(nn.Module):
 
         self.writer.LOG_INFO("=== Build model init ===")
         self.build_model_init()
+        
+        self.writer.LOG_INFO("=== Load Pretrained ===")
+        self.load_pretrained()
 
         self.writer.LOG_INFO("=== Build model layers ===")
         self.build_layers()
@@ -41,11 +46,41 @@ class TransformerSummarizer(nn.Module):
         self.writer = registry.get_writer("common")
 
 
+    def load_pretrained(self):
+        self.model_name = self.model_config["pretrained"]
+        config = AutoConfig.from_pretrained(self.model_name)
+
+        #-- Load pretrained
+        self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
+        self.model = T5ForConditionalGeneration.from_pretrained(
+            self.model_name, 
+            config=config
+        ).to(self.device)
+
+        #-- Load Encoder, Decoder, Classifier
+        self.model.gradient_checkpointing_enable()
+        self.encoder = self.model.encoder
+        self.decoder = self.model.decoder
+        self.classifier = self.model.lm_head
+
+        # for param in self.encoder.parameters():
+        #     param.requires_grad = False
+        # self.writer.LOG_INFO("Freeze the encoder params")
+
+    
     def build_layers(self):
-        self.decoder = Decoder()
-        self.encoder_description = Encoder("encoder", "ocr_description")
-        self.encoder_summary = Encoder("encoder", "gt")
-        self.classifier = Classifier()
+        #~ Load Config
+        encoder_config = self.model_config["encoder"]
+        decoder_config = self.model_config["decoder"]
+
+        self.max_length = encoder_config["max_length"]
+        self.max_dec_length = encoder_config["max_dec_length"]
+
+        #-- Load Layer
+        self.encoder_description = Encoder(tokenizer=self.tokenizer, encoder=self.encoder, max_length=self.max_length)
+        self.encoder_summary = Encoder(tokenizer=self.tokenizer, encoder=self.encoder, max_length=self.max_dec_length)
+        self.decoder = Decoder(self.decoder)
+        self.classifier = Classifier(self.classifier)
 
 
     def build_model_init(self):
@@ -124,12 +159,10 @@ class TransformerSummarizer(nn.Module):
         #-- Get summary ids
         gt_caption_inputs = self.encoder_summary.tokenize(gt_captions)
         gt_caption_input_ids = gt_caption_inputs["input_ids"]
-        gt_caption_attention_mask = gt_caption_inputs["attention_mask"]
 
 
         #-- Others params
         batch_size = ocr_description_embed.size(0)
-        dec_length = self.encoder_summary.max_length
         vocab_size = self.classifier.get_vocab_size()
 
             #~: Labels:     Tôi  là  AI  .  <EOS>
@@ -158,7 +191,7 @@ class TransformerSummarizer(nn.Module):
             pad_id = self.encoder_summary.tokenizer.pad_token_id
 
             with torch.no_grad():
-                scores = torch.zeros((batch_size, dec_length, vocab_size), device=self.device)
+                scores = torch.zeros((batch_size, self.max_dec_length, vocab_size), device=self.device)
                 decoder_input_ids = torch.full(
                     (batch_size, 1),
                     fill_value=pad_id,
@@ -166,7 +199,7 @@ class TransformerSummarizer(nn.Module):
                     device=self.device
                 )
 
-                for step in range(dec_length):
+                for step in range(self.max_dec_length):
                     decoder_attention_mask = (decoder_input_ids != pad_id).long()
                     results = self.forward_mmt(
                         input_embed=ocr_description_embed,
@@ -178,8 +211,8 @@ class TransformerSummarizer(nn.Module):
                     argmax_inds = step_scores.argmax(dim=-1).unsqueeze(-1)
 
                     #~ Assign
-                    scores[:, step, :] = step_scores[:, step, :]
-                    decoder_input_ids = torch.concat([decoder_input_ids, argmax_inds[:, step]], dim=1)
+                    scores[:, step, :] = step_scores[:, -1, :]
+                    decoder_input_ids = torch.concat([decoder_input_ids, argmax_inds[:, -1]], dim=1)
 
                 # gen_ids = decoder_input_ids[:, 1:] #-- Ignore the first pad token
                 return scores, decoder_input_ids, labels_input_ids

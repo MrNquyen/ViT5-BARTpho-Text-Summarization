@@ -7,23 +7,15 @@ dataset_attributes:
     train: /datastore/npl/ViInfographicCaps/data/data/vitern/train_dev_test/train_no_segmentation.json
     val: /datastore/npl/ViInfographicCaps/data/data/vitern/train_dev_test/val_no_segmentation.json
     test: /datastore/npl/ViInfographicCaps/data/data/vitern/train_dev_test/test_no_segmentation.json
+pretrained: /datastore/npl/ViInfographicCaps/model/vit5-base
 model_attributes:
   hidden_size: 768
   encoder:
-    # pretrained: /datastore/npl/ViInfographicCaps/model/bert-base-uncased
-    # vocab_file: /datastore/npl/ViInfographicCaps/data/data/new_split_format/vocabs.txt
-    vocab_file: /datastore/npl/ViInfographicCaps/data/data/vitern/train_dev_test/vocabs.txt
-    pretrained: /datastore/npl/ViInfographicCaps/model/vit5-base
     max_length: 128
-    # max_length: 10
     max_dec_length: 50
-    # max_dec_length: 5
     return_tensors: pt
   decoder:
-    # pretrained: /datastore/npl/ViInfographicCaps/model/bert-base-uncased
-    pretrained: /datastore/npl/ViInfographicCaps/model/vit5-base
     max_length: 50
-    # max_length: 5
     num_layers: 4
     nhead: 12
     dropout: 0.1
