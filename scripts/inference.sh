@@ -3,4 +3,4 @@ python main.py \
 --save_dir ./save \
 --run_type inference \
 --device cuda:3 \
---resume_file /data2/npl/ViInfographicCaps/workspace/baseline_summarization/Seq2SeqTransformer-Text-Summarization/save/checkpoints/model_last.pth
+--resume_file /datastore/npl/ViInfographicCaps/workspace/baseline_summarization/vit5_summarize/Seq2SeqTransformer-Text-Summarization/save/checkpoints/model_best.pth

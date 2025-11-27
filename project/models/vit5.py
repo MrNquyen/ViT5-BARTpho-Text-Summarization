@@ -48,10 +48,11 @@ class TransformerSummarizer(nn.Module):
 
     def load_pretrained(self):
         self.model_name = self.model_config["pretrained"]
+        ic(self.model_name)
         config = AutoConfig.from_pretrained(self.model_name)
 
         #-- Load pretrained
-        self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
+        self.tokenizer = AutoTokenizer.from_pretrained(self.model_name, use_fast=False)
         self.model = T5ForConditionalGeneration.from_pretrained(
             self.model_name, 
             config=config
