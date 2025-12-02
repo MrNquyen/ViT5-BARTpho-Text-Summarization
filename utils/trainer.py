@@ -14,7 +14,7 @@ from utils.logger import Logger
 from utils.metrics import metric_calculate
 from utils.utils import save_json, count_nan
 from utils.registry import registry
-from project.models.vit5 import TransformerSummarizer
+from project.models.bartpho import TransformerSummarizer
 from icecream import ic
 from utils.utils import check_requires_grad
 

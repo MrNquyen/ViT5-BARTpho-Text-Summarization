@@ -1,18 +1,18 @@
 import torch
 from torch import nn
-from project.modules_vit5.decoder import Decoder
-from project.modules_vit5.encoder import Encoder 
+from project.modules_bart.decoder import Decoder
+from project.modules_bart.encoder import Encoder 
 from utils.registry import registry
 from utils.utils import count_nan
 from utils.module_utils import _batch_gather
-from project.modules_vit5.classifier import Classifier
+from project.modules_bart.classifier import Classifier
 from torch.nn import functional as F
 from icecream import ic
 from tqdm import tqdm
 import math
 import time
 
-from transformers import AutoConfig, AutoTokenizer, T5ForConditionalGeneration
+from transformers import AutoConfig, AutoTokenizer, BartForConditionalGeneration
 
 
 class TransformerSummarizer(nn.Module):
@@ -53,20 +53,17 @@ class TransformerSummarizer(nn.Module):
 
         #-- Load pretrained
         self.tokenizer = AutoTokenizer.from_pretrained(self.model_name, use_fast=False)
-        self.model = T5ForConditionalGeneration.from_pretrained(
+        self.model = BartForConditionalGeneration.from_pretrained(
             self.model_name, 
             config=config
         ).to(self.device)
 
         #-- Load Encoder, Decoder, Classifier
         self.model.gradient_checkpointing_enable()
-        self.encoder = self.model.encoder
-        self.decoder = self.model.decoder
+        self.encoder = self.model.model.encoder
+        self.decoder = self.model.model.decoder
         self.classifier = self.model.lm_head
 
-        # for param in self.encoder.parameters():
-        #     param.requires_grad = False
-        # self.writer.LOG_INFO("Freeze the encoder params")
 
     
     def build_layers(self):
@@ -80,7 +77,10 @@ class TransformerSummarizer(nn.Module):
         #-- Load Layer
         self.encoder_description = Encoder(tokenizer=self.tokenizer, encoder=self.encoder, max_length=self.max_length)
         self.encoder_summary = Encoder(tokenizer=self.tokenizer, encoder=self.encoder, max_length=self.max_dec_length)
-        self.decoder = Decoder(self.decoder)
+        self.decoder = Decoder(
+            tokenizer=self.tokenizer, 
+            decoder=self.decoder
+        )
         self.classifier = Classifier(self.classifier)
 
 
@@ -190,12 +190,13 @@ class TransformerSummarizer(nn.Module):
             #~ Greedy Search
             eos_id = self.encoder_summary.tokenizer.eos_token_id
             pad_id = self.encoder_summary.tokenizer.pad_token_id
+            start_id = self.decoder.decoder.config.decoder_start_token_id
 
             with torch.no_grad():
                 scores = torch.zeros((batch_size, self.max_dec_length, vocab_size), device=self.device)
                 decoder_input_ids = torch.full(
                     (batch_size, 1),
-                    fill_value=pad_id,
+                    fill_value=start_id,
                     dtype=torch.long,
                     device=self.device
                 )
@@ -245,7 +246,7 @@ class TransformerSummarizer(nn.Module):
             Return:
             ----------
         """
-        vit5_dec_last_hidden_state = results["vit5_dec_last_hidden_state"]
-        fixed_scores = self.classifier(vit5_dec_last_hidden_state)
+        bartpho_dec_last_hidden_state = results["bartpho_dec_last_hidden_state"]
+        fixed_scores = self.classifier(bartpho_dec_last_hidden_state)
         return fixed_scores
 

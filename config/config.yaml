@@ -8,7 +8,7 @@ dataset_attributes:
     val: /datastore/npl/ViInfographicCaps/data/data/vitern/train_dev_test/val_no_segmentation.json
     test: /datastore/npl/ViInfographicCaps/data/data/vitern/train_dev_test/test_no_segmentation.json
 model_attributes:
-  pretrained: /datastore/npl/ViInfographicCaps/model/vit5-base
+  pretrained: /datastore/npl/ViInfographicCaps/model/bartpho-syllable
   hidden_size: 768
   encoder:
     max_length: 128
