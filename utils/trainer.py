@@ -156,10 +156,9 @@ class Trainer():
             targets.shape: torch.Size([B, max_length])
         """
         num_vocab = scores.size(-1)
-        scores_reshape = scores[:, 1:, :].reshape(-1, num_vocab)
-        targets_reshape = targets[:, 1:].reshape(-1)
+        scores_reshape = scores.reshape(-1, num_vocab)
+        targets_reshape = targets.reshape(-1)
         loss_output = self.loss_fn(
-            # scores, targets
             scores_reshape, targets_reshape
         ) 
         return loss_output

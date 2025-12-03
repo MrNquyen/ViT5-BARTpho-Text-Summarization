@@ -166,9 +166,15 @@ class TransformerSummarizer(nn.Module):
         batch_size = ocr_description_embed.size(0)
         vocab_size = self.classifier.get_vocab_size()
 
-            #~: Labels:     Tôi  là  AI  .  <EOS>
+        #~: Prepare labels - set -100 for pad tokens
+        #~: GT sequence: <s> Tôi là AI . </s> <pad> <pad>
+        #~: Labels:      Tôi là AI . </s> -100 -100 -100
         labels_input_ids = gt_caption_input_ids.clone()
         labels_input_ids[labels_input_ids == self.encoder_summary.tokenizer.pad_token_id] = -100
+        
+        #-- Also mask the BOS token (decoder start token) if present at position 0
+        if labels_input_ids[:, 0].eq(self.decoder.decoder.config.decoder_start_token_id).any():
+            labels_input_ids[:, 0] = -100
 
         #-- Get ids
         if self.training:
