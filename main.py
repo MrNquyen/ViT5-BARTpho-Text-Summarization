@@ -1,7 +1,7 @@
 from utils.flags import Flags
 from utils.configs import Config
 from utils.utils import load_yml
-from utils.trainer import Trainer
+from utils.trainer_bart import Trainer
 
 import random
 import torch 
