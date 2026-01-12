@@ -147,7 +147,6 @@ class TransformerSummarizer(nn.Module):
             batch
         ):
         gt_captions = batch["list_captions"]
-        gt_caption_tokens = batch["list_caption_tokens"]
         ocr_descriptions = batch["list_ocr_descriptions"]
 
 
