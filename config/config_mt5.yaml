@@ -22,8 +22,8 @@ model_attributes:
 optimizer_attributes:
   lr_scale: 0.1 # scale lr for finetuning modules
   params:
-    eps: 1e-8
-    lr: 1e-4 
+    eps: 1.0e-8
+    lr: 1.0e-4 
     weight_decay: 0.01
   type: AdamW
 training_parameters:
