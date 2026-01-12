@@ -12,7 +12,7 @@ from tqdm import tqdm
 import math
 import time
 
-from transformers import AutoConfig, AutoTokenizer, BartForConditionalGeneration
+from transformers import AutoConfig, AutoTokenizer, MBartForConditionalGeneration
 
 
 class TransformerSummarizer(nn.Module):
