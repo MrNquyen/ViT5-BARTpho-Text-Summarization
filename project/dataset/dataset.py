@@ -35,15 +35,11 @@ def collate_fn(batch):
     list_id = [item["id"] for item in batch]
     list_captions = [item["caption"] for item in batch]
     list_ocr_descriptions = [item["ocr_description"] for item in batch]
-    list_caption_tokens = [item["caption_tokens"] for item in batch]
-    list_ocr_description_tokens = [item["ocr_description_tokens"] for item in batch]
     
     return {
         "list_id": list_id,
         "list_captions": list_captions,
         "list_ocr_descriptions": list_ocr_descriptions,
-        "list_caption_tokens": list_caption_tokens,
-        "list_ocr_description_tokens": list_ocr_description_tokens,
     }
 
 
