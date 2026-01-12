@@ -28,7 +28,7 @@ optimizer_attributes:
   type: AdamW
 training_parameters:
   epochs: 150
-  batch_size: 64
+  batch_size: 32
   early_stopping:
     patience: 5
   lr_scheduler:
