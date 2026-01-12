@@ -9,7 +9,7 @@ from icecream import ic
 from tqdm import tqdm
 
 #----------DATASET----------
-class ViInforgraphicDataset(Dataset):
+class ViInforgraphicSummarizeDataset(Dataset):
     def __init__(self, dataset_config, split):
         super().__init__()
 
