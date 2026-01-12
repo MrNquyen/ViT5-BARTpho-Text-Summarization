@@ -20,9 +20,7 @@ class ViInforgraphicSummarizeDataset(Dataset):
             self.data.append({
                 "id": im_id,
                 "caption": item["caption"],
-                "ocr_description": item["ocr_description"],
-                "caption_tokens": item["caption"].split(" "),
-                "ocr_description_tokens": item["ocr_description"].split(" "),
+                "ocr_description": item["ocr_description"].replace("\n", " "),
             })
 
 

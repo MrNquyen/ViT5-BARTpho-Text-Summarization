@@ -1,14 +1,11 @@
 
 dataset_attributes:
   annotations:
-    # train: /datastore/npl/ViInfographicCaps/data/data/paddle_ocr_description/train_new.json
-    # val: /datastore/npl/ViInfographicCaps/data/data/paddle_ocr_description/val_new.json
-    # test: /datastore/npl/ViInfographicCaps/data/data/paddle_ocr_description/test_new.json
-    train: /datastore/npl/ViInfographicCaps/data/data/vitern/train_dev_test/train_no_segmentation.json
-    val: /datastore/npl/ViInfographicCaps/data/data/vitern/train_dev_test/val_no_segmentation.json
-    test: /datastore/npl/ViInfographicCaps/data/data/vitern/train_dev_test/test_no_segmentation.json
+    train: /kaggle/working/Simple-Summarization/data/train_new.json
+    val: /kaggle/working/Simple-Summarization/data/val_new.json
+    test: /kaggle/working/Simple-Summarization/data/test_new.json
 model_attributes:
-  pretrained: /datastore/npl/ViInfographicCaps/model/bartpho-syllable
+  pretrained: VietAI/vit5-base
   hidden_size: 768
   encoder:
     max_length: 128
@@ -47,7 +44,7 @@ training_parameters:
     use_warmup: true
     warmup_factor: 0.5
     warmup_iterations: 1000
-    lr_epoch_step_size: 5
+    lr_epoch_step_size: 7
     warmup_epochs: 10
     decay_factor: 0.3
   max_iterations: 12000

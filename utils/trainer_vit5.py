@@ -126,7 +126,10 @@ class Trainer():
             warnings.warn(
                 "optimizer attributes has no params defined, defaulting to {}."
             )
-        optimizer_params = getattr(config_optimizer, "params", {})
+        optimizer_params = config_optimizer.get("params", {})
+        ic(optimizer_params)
+        ic(f"=== DEBUG: Config LR = {optimizer_params.get('lr', 'NOT FOUND')} ===")
+        ic(optimizer_params)
         
         #-- Load optimizer class
         if not hasattr(torch.optim, optimizer_type):
@@ -134,10 +137,11 @@ class Trainer():
                 "No optimizer found in torch.optim"
             )
         optimizer_class = getattr(torch.optim, optimizer_type)
-        parameters = get_optimizer_parameters(
-            model=model, 
-            config=config_optimizer
-        )
+        # parameters = get_optimizer_parameters(
+        #     model=model, 
+        #     config=config_optimizer
+        # )
+        parameters = model.parameters()
         optimizer = optimizer_class(parameters, **optimizer_params)
         return optimizer
     
@@ -223,7 +227,6 @@ class Trainer():
                 #~ Loss cal - For training so it is caption_ids
                 scores_output, caption_inds, target_inds = self._forward_pass(batch)
                 loss = self._extract_loss(scores_output, target_inds)
-                ic(loss)
                 self._backward(loss)
 
             #-- Run scheduler
@@ -299,14 +302,12 @@ class Trainer():
                 loss = self._extract_loss(scores_output, target_inds)
                 loss_scalar = loss.detach().cpu().item()
                 losses.append(loss_scalar)
-                ic(loss_scalar)
                 
                 #~ Metrics calculation
                 if not epoch_id==None:
                     self.writer_evaluation.LOG_INFO(f"Logging at iteration: {epoch_id}")
                 
                 pred_caps = self.get_pred_captions(pred_inds)
-                ic(pred_caps)
                 for id, pred_cap, ref_cap in zip(list_id, pred_caps, list_captions):
                     hypo[id] = [pred_cap]
                     ref[id]  = [ref_cap]
