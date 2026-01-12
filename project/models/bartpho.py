@@ -53,7 +53,7 @@ class TransformerSummarizer(nn.Module):
 
         #-- Load pretrained
         self.tokenizer = AutoTokenizer.from_pretrained(self.model_name, use_fast=False)
-        self.model = BartForConditionalGeneration.from_pretrained(
+        self.model = MBartForConditionalGeneration.from_pretrained(
             self.model_name, 
             config=config
         ).to(self.device)
