@@ -213,7 +213,7 @@ class Trainer():
         self.writer.LOG_INFO("Starting training...")
         self.model.train()
         
-        
+        best_scores = -1
         while self.current_epoch <= self.max_epochs:
             self.current_epoch += 1
             self.writer.LOG_INFO(f"Training epoch: {self.current_epoch}")
