@@ -1,9 +1,9 @@
 
 dataset_attributes:
-  annotations:
-    train: /kaggle/working/Simple-Summarization/data/train_new.json
-    val: /kaggle/working/Simple-Summarization/data/val_new.json
-    test: /kaggle/working/Simple-Summarization/data/test_new.json
+  imdb_files:
+    train: /kaggle/working/Simple-Summarization/data/train_imdb_new_method_no_segmented.npy
+    val: /kaggle/working/Simple-Summarization/data/val_imdb_new_method_no_segmented.npy
+    test: /kaggle/working/Simple-Summarization/data/test_imdb_new_method_no_segmented.npy
 model_attributes:
   pretrained: google/mt5-base
   hidden_size: 768

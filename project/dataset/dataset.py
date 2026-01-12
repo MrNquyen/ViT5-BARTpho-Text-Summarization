@@ -9,19 +9,26 @@ from icecream import ic
 from tqdm import tqdm
 
 #----------DATASET----------
-class ViInforgraphicSummarizeDataset(Dataset):
+class ViInforgraphicDataset(Dataset):
     def __init__(self, dataset_config, split):
         super().__init__()
-        annotation_path = dataset_config["annotations"][split]
-        annotation_dict = load_json(annotation_path)
-        self.data = []
 
-        for im_id, item in tqdm(list(annotation_dict.items())):
+        #-- Load features directory
+        imdb_path = dataset_config["imdb_files"][split]
+
+        #-- Load data
+        imdb = load_npy(imdb_path)
+        self.data = []
+        for item in tqdm(imdb, desc=f"Loading {split} split"):
+            im_id = item["image_id"]
+            #-- Load data
             self.data.append({
                 "id": im_id,
-                "caption": item["caption"],
+                "im_path": item["image_path"],
+                "caption": item["caption_str"],
                 "ocr_description": item["ocr_description"].replace("\n", " "),
             })
+
 
 
     def __getitem__(self, index):

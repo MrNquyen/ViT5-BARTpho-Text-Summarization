@@ -252,18 +252,7 @@ class Trainer():
                 if self.early_stop_counter >= self.early_stop_patience:
                     self.writer.LOG_INFO("Early stopping triggered.")
                     break
-                
-
-                self.save_model(
-                    model=self.model,
-                    loss=loss,
-                    optimizer=self.optimizer,
-                    lr_scheduler=self.lr_scheduler,
-                    epoch=self.current_epoch, 
-                    iteration=self.current_iteration,
-                    metric_score=best_scores,
-                    use_name=self.current_epoch
-                )
+            
             self.save_model(
                 model=self.model,
                 loss=loss,
